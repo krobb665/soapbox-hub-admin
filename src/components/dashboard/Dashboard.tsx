@@ -47,7 +47,8 @@ export const Dashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [registrationsResult, announcementsResult, documentsResult] = await Promise.all([
+      // Fetch registrations and announcements first
+      const [registrationsResult, announcementsResult] = await Promise.all([
         supabase
           .from('team_registrations')
           .select('*')
@@ -55,11 +56,6 @@ export const Dashboard = () => {
         supabase
           .from('announcements')
           .select('*')
-          .order('created_at', { ascending: false })
-          .limit(5),
-        supabase
-          .from('team_documents')
-          .select('id, title, file_url, created_at')
           .order('created_at', { ascending: false })
           .limit(5)
       ]);
@@ -72,14 +68,26 @@ export const Dashboard = () => {
         console.error('Error fetching announcements:', announcementsResult.error);
         throw announcementsResult.error;
       }
-      if (documentsResult.error) {
-        console.error('Error fetching documents:', documentsResult.error);
-        throw documentsResult.error;
-      }
 
       setRegistrations(registrationsResult.data || []);
       setAnnouncements(announcementsResult.data || []);
-      setDocuments(documentsResult.data || []);
+
+      // Try to fetch documents, but don't fail if table doesn't exist
+      try {
+        const documentsResult = await supabase
+          .from('team_documents')
+          .select('id, title, file_url, created_at')
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        if (documentsResult.error && !documentsResult.error.message.includes('does not exist')) {
+          console.error('Error fetching documents:', documentsResult.error);
+        } else if (!documentsResult.error) {
+          setDocuments(documentsResult.data || []);
+        }
+      } catch (docError) {
+        console.log('Documents table not yet available:', docError);
+      }
     } catch (error) {
       console.error('Error in fetchData:', error);
       toast({
