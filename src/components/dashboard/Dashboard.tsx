@@ -72,22 +72,9 @@ export const Dashboard = () => {
       setRegistrations(registrationsResult.data || []);
       setAnnouncements(announcementsResult.data || []);
 
-      // Try to fetch documents, but don't fail if table doesn't exist
-      try {
-        const documentsResult = await supabase
-          .from('team_documents')
-          .select('id, title, file_url, created_at')
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        if (documentsResult.error && !documentsResult.error.message.includes('does not exist')) {
-          console.error('Error fetching documents:', documentsResult.error);
-        } else if (!documentsResult.error) {
-          setDocuments(documentsResult.data || []);
-        }
-      } catch (docError) {
-        console.log('Documents table not yet available:', docError);
-      }
+      // Documents feature temporarily disabled until migration is applied
+      // The team_documents table needs to be created via Supabase migration
+      setDocuments([]);
     } catch (error) {
       console.error('Error in fetchData:', error);
       toast({
