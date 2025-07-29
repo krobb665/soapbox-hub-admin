@@ -2,9 +2,10 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { Car, Users, Clock, AlertCircle, Megaphone } from 'lucide-react';
+import { Car, Users, Clock, AlertCircle, Megaphone, FileText, Eye } from 'lucide-react';
 
 interface TeamRegistration {
   id: string;
@@ -20,14 +21,23 @@ interface TeamRegistration {
 interface Announcement {
   id: string;
   title: string;
-  message: string;
+  content: string;
   category: string;
+  audience: string;
+  created_at: string;
+}
+
+interface TeamDocument {
+  id: string;
+  title: string;
+  file_url: string;
   created_at: string;
 }
 
 export const Dashboard = () => {
   const [registrations, setRegistrations] = useState<TeamRegistration[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [documents, setDocuments] = useState<TeamDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -37,7 +47,7 @@ export const Dashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [registrationsResult, announcementsResult] = await Promise.all([
+      const [registrationsResult, announcementsResult, documentsResult] = await Promise.all([
         supabase
           .from('team_registrations')
           .select('*')
@@ -45,6 +55,11 @@ export const Dashboard = () => {
         supabase
           .from('announcements')
           .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase
+          .from('team_documents')
+          .select('id, title, file_url, created_at')
           .order('created_at', { ascending: false })
           .limit(5)
       ]);
@@ -57,9 +72,14 @@ export const Dashboard = () => {
         console.error('Error fetching announcements:', announcementsResult.error);
         throw announcementsResult.error;
       }
+      if (documentsResult.error) {
+        console.error('Error fetching documents:', documentsResult.error);
+        throw documentsResult.error;
+      }
 
       setRegistrations(registrationsResult.data || []);
       setAnnouncements(announcementsResult.data || []);
+      setDocuments(documentsResult.data || []);
     } catch (error) {
       console.error('Error in fetchData:', error);
       toast({
@@ -158,8 +178,48 @@ export const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Announcements */}
-        <div>
+        <div className="space-y-6">
+          {/* Team Documents */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <FileText className="h-5 w-5" />
+                <span>Your Documents</span>
+              </CardTitle>
+              <CardDescription>
+                Recent team-specific documents
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {documents.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">
+                  No documents available yet.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {documents.map((document) => (
+                    <div key={document.id} className="flex items-center justify-between p-3 border rounded">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-sm">{document.title}</h4>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(document.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(document.file_url, '_blank')}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Announcements */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
@@ -187,7 +247,7 @@ export const Dashboard = () => {
                           }`} />
                           <div className="flex-1">
                             <h4 className="font-medium text-sm">{announcement.title}</h4>
-                            <p className="text-xs text-gray-600 mt-1">{announcement.message}</p>
+                            <p className="text-xs text-gray-600 mt-1 line-clamp-2">{announcement.content}</p>
                             <p className="text-xs text-gray-400 mt-1">
                               {new Date(announcement.created_at).toLocaleDateString()}
                             </p>
@@ -204,4 +264,24 @@ export const Dashboard = () => {
       </div>
     </div>
   );
+
+  function getStatusColor(status: string) {
+    switch (status) {
+      case 'approved': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'waitlist': return 'bg-blue-100 text-blue-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  }
+
+  function getCategoryColor(category: string) {
+    return category === 'under_12' ? 'bg-purple-100 text-purple-800' : 'bg-orange-100 text-orange-800';
+  }
+
+  function getAnnouncementIcon(category: string) {
+    return category === 'urgent' ? AlertCircle : 
+           category === 'info' ? Clock : 
+           Car;
+  }
 };
