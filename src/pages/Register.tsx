@@ -1,0 +1,42 @@
+
+import { Header } from '@/components/layout/Header';
+import { Navigation } from '@/components/layout/Navigation';
+import { TeamRegistrationForm } from '@/components/registration/TeamRegistrationForm';
+import { AuthGuard } from '@/components/auth/AuthGuard';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { User } from '@supabase/supabase-js';
+
+export default function Register() {
+  const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', user.id)
+          .single();
+        
+        setIsAdmin(profile?.is_admin || false);
+      }
+    };
+
+    getUser();
+  }, []);
+
+  return (
+    <AuthGuard>
+      <div className="min-h-screen bg-gray-50">
+        <Header isAdmin={isAdmin} userEmail={user?.email} />
+        <Navigation isAdmin={isAdmin} />
+        <TeamRegistrationForm />
+      </div>
+    </AuthGuard>
+  );
+}
