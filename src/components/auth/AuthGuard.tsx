@@ -30,12 +30,14 @@ export const AuthGuard = ({ children, requireAdmin = false }: AuthGuardProps) =>
           
           if (error) {
             console.error('Error fetching profile:', error);
+            setIsAdmin(false);
+          } else {
+            setIsAdmin(profile?.is_admin ?? false);
           }
-          
-          setIsAdmin(profile?.is_admin || false);
         }
       } catch (error) {
         console.error('Error in getUser:', error);
+        setIsAdmin(false);
       } finally {
         setLoading(false);
       }
@@ -56,11 +58,13 @@ export const AuthGuard = ({ children, requireAdmin = false }: AuthGuardProps) =>
           
           if (error) {
             console.error('Error fetching profile:', error);
+            setIsAdmin(false);
+          } else {
+            setIsAdmin(profile?.is_admin ?? false);
           }
-          
-          setIsAdmin(profile?.is_admin || false);
         } catch (error) {
           console.error('Error fetching profile on auth change:', error);
+          setIsAdmin(false);
         }
       } else {
         setIsAdmin(false);

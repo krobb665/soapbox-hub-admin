@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -95,7 +95,7 @@ export const TeamRegistrationForm = () => {
           phone: formData.phone,
           soapbox_name: formData.soapbox_name,
           soapbox_description: formData.soapbox_description,
-          category: formData.category,
+          category: formData.category as 'under_12' | 'open',
           file_url: fileUrl,
         })
         .select()

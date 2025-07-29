@@ -26,12 +26,14 @@ export default function Register() {
           
           if (error) {
             console.error('Error fetching profile:', error);
+            setIsAdmin(false);
+          } else {
+            setIsAdmin(profile?.is_admin ?? false);
           }
-          
-          setIsAdmin(profile?.is_admin || false);
         }
       } catch (error) {
         console.error('Error in getUser:', error);
+        setIsAdmin(false);
       }
     };
 
