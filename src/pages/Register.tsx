@@ -13,17 +13,25 @@ export default function Register() {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', user.id)
-          .single();
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
         
-        setIsAdmin(profile?.is_admin || false);
+        if (user) {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('is_admin')
+            .eq('id', user.id)
+            .maybeSingle();
+          
+          if (error) {
+            console.error('Error fetching profile:', error);
+          }
+          
+          setIsAdmin(profile?.is_admin || false);
+        }
+      } catch (error) {
+        console.error('Error in getUser:', error);
       }
     };
 

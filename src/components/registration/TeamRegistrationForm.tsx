@@ -101,7 +101,14 @@ export const TeamRegistrationForm = () => {
         .select()
         .single();
 
-      if (registrationError) throw registrationError;
+      if (registrationError) {
+        console.error('Registration error:', registrationError);
+        throw registrationError;
+      }
+
+      if (!registration) {
+        throw new Error('Registration failed - no data returned');
+      }
 
       // Add team members
       if (teamMembers.length > 0) {
@@ -118,7 +125,10 @@ export const TeamRegistrationForm = () => {
             .from('team_members')
             .insert(membersToInsert);
 
-          if (membersError) throw membersError;
+          if (membersError) {
+            console.error('Members error:', membersError);
+            throw membersError;
+          }
         }
       }
 
@@ -141,6 +151,7 @@ export const TeamRegistrationForm = () => {
       setFile(null);
 
     } catch (error) {
+      console.error('Submit error:', error);
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to submit registration',

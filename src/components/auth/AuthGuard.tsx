@@ -17,20 +17,28 @@ export const AuthGuard = ({ children, requireAdmin = false }: AuthGuardProps) =>
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', user.id)
-          .single();
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
         
-        setIsAdmin(profile?.is_admin || false);
+        if (user) {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('is_admin')
+            .eq('id', user.id)
+            .maybeSingle();
+          
+          if (error) {
+            console.error('Error fetching profile:', error);
+          }
+          
+          setIsAdmin(profile?.is_admin || false);
+        }
+      } catch (error) {
+        console.error('Error in getUser:', error);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
     getUser();
@@ -39,13 +47,21 @@ export const AuthGuard = ({ children, requireAdmin = false }: AuthGuardProps) =>
       setUser(session?.user || null);
       
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', session.user.id)
-          .single();
-        
-        setIsAdmin(profile?.is_admin || false);
+        try {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('is_admin')
+            .eq('id', session.user.id)
+            .maybeSingle();
+          
+          if (error) {
+            console.error('Error fetching profile:', error);
+          }
+          
+          setIsAdmin(profile?.is_admin || false);
+        } catch (error) {
+          console.error('Error fetching profile on auth change:', error);
+        }
       } else {
         setIsAdmin(false);
       }

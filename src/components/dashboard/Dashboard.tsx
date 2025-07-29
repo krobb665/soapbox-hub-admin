@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { Car, Users, Clock, AlertCircle } from 'lucide-react';
+import { Car, Users, Clock, AlertCircle, Megaphone } from 'lucide-react';
 
 interface TeamRegistration {
   id: string;
@@ -49,12 +49,19 @@ export const Dashboard = () => {
           .limit(5)
       ]);
 
-      if (registrationsResult.error) throw registrationsResult.error;
-      if (announcementsResult.error) throw announcementsResult.error;
+      if (registrationsResult.error) {
+        console.error('Error fetching registrations:', registrationsResult.error);
+        throw registrationsResult.error;
+      }
+      if (announcementsResult.error) {
+        console.error('Error fetching announcements:', announcementsResult.error);
+        throw announcementsResult.error;
+      }
 
       setRegistrations(registrationsResult.data || []);
       setAnnouncements(announcementsResult.data || []);
     } catch (error) {
+      console.error('Error in fetchData:', error);
       toast({
         title: 'Error',
         description: 'Failed to load dashboard data',
