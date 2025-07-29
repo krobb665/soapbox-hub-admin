@@ -76,11 +76,12 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header isAdmin={true} userEmail={user?.email} />
-      <AdminNavigation />
+    <div className="min-h-screen bg-gray-50 flex">
+      <AdminNavigation user={user} />
       
-      <main className="p-6">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header isAdmin={true} userEmail={user?.email} />
+        <main className="flex-1 overflow-y-auto p-6">
         <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
         
         <div className="grid gap-6 md:grid-cols-3 mb-8">
@@ -166,7 +167,8 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
