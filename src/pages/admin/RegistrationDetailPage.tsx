@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Header } from '@/components/layout/Header';
-import { AdminNavigation } from '@/components/layout/AdminNavigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Mail, Phone, Users, Calendar, FileText, Check, X, Clock } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, Mail, Phone, Users, FileText, Check, X, Edit, Save, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
+import { Header } from '@/components/layout/Header';
+import { AdminNavigation } from '@/components/layout/AdminNavigation';
 
 interface TeamMember {
   id: string;
@@ -28,9 +33,12 @@ export default function RegistrationDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [registration, setRegistration] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [registration, setRegistration] = useState<any>(null);
+  const [formData, setFormData] = useState<any>({});
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [tabValue, setTabValue] = useState('overview');
+  const { toast } = useToast();
 
   useEffect(() => {
     if (id) {
@@ -82,20 +90,91 @@ export default function RegistrationDetailPage() {
     }
   };
 
-  const handleStatusUpdate = async (newStatus) => {
+  useEffect(() => {
+    if (registration) {
+      setFormData({
+        team_name: registration.team_name || '',
+        captain_name: registration.captain_name || '',
+        email: registration.email || '',
+        phone: registration.phone || '',
+        soapbox_name: registration.soapbox_name || '',
+        soapbox_description: registration.soapbox_description || '',
+        category: registration.category || 'open',
+        status: registration.status || 'pending',
+        race_number: registration.race_number || '',
+        heat_time: registration.heat_time || '',
+      });
+    }
+  }, [registration]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev: any) => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSaveChanges = async () => {
     try {
+      setLoading(true);
       const { error } = await supabase
         .from('team_registrations')
-        .update({ 
-          status: newStatus,
-          reviewed_at: new Date().toISOString() 
+        .update({
+          ...formData,
+          updated_at: new Date().toISOString()
         })
         .eq('id', id);
       
       if (error) throw error;
       
       // Update local state
-      setRegistration(prev => ({
+      setRegistration((prev: any) => ({
+        ...prev,
+        ...formData,
+        updated_at: new Date().toISOString()
+      }));
+      
+      setIsEditing(false);
+      
+      toast({
+        title: 'Success',
+        description: 'Registration updated successfully',
+      });
+    } catch (error) {
+      console.error('Error saving changes:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save changes',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusUpdate = async (newStatus: string) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('team_registrations')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setRegistration((prev: any) => ({
         ...prev,
         status: newStatus,
         reviewed_at: new Date().toISOString()
@@ -131,19 +210,9 @@ export default function RegistrationDetailPage() {
 
   if (loading || !registration) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header isAdmin={true} />
-        <div className="flex">
-          <AdminNavigation />
-          <main className="flex-1 p-6">
-            <div className="flex items-center justify-center h-64">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-                <p>Loading registration details...</p>
-              </div>
-            </div>
-          </main>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+        <p>Loading registration details...</p>
       </div>
     );
   }
@@ -153,46 +222,69 @@ export default function RegistrationDetailPage() {
       <Header isAdmin={true} />
       <div className="flex">
         <AdminNavigation />
-        
         <main className="flex-1 p-6">
-          <div className="flex items-center mb-6">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="mr-4"
-              onClick={() => navigate(-1)}
-            >
+          <div className="flex items-center justify-between mb-6">
+            <Button variant="ghost" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Registrations
             </Button>
-            <h1 className="text-2xl font-bold">Registration Details</h1>
-            <div className="ml-auto">
-              {registration.status === 'pending' ? (
-                <div className="flex gap-2">
+            
+            <div className="flex gap-2">
+              {isEditing ? (
+                <>
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="text-green-600 border-green-200 hover:bg-green-50"
-                    onClick={() => handleStatusUpdate('approved')}
-                  >
-                    <Check className="h-4 w-4 mr-2" />
-                    Approve
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-red-600 border-red-200 hover:bg-red-50"
-                    onClick={() => handleStatusUpdate('rejected')}
+                    onClick={() => setIsEditing(false)}
+                    disabled={loading}
                   >
                     <X className="h-4 w-4 mr-2" />
-                    Reject
+                    Cancel
                   </Button>
-                </div>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={handleSaveChanges}
+                    disabled={loading}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Changes
+                  </Button>
+                </>
               ) : (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Status:</span>
-                  {getStatusBadge(registration.status)}
-                </div>
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setIsEditing(true)}
+                    disabled={loading}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Details
+                  </Button>
+                  {registration.status === 'pending' && (
+                    <>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleStatusUpdate('approved')}
+                        disabled={loading}
+                      >
+                        <Check className="h-4 w-4 mr-2" />
+                        Approve
+                      </Button>
+                      <Button 
+                        variant="destructive"
+                        size="sm" 
+                        onClick={() => handleStatusUpdate('rejected')}
+                        disabled={loading}
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Reject
+                      </Button>
+                    </>
+                  )}
+                </>  
               )}
             </div>
           </div>
@@ -215,11 +307,36 @@ export default function RegistrationDetailPage() {
                     <div className="space-y-2">
                       <div>
                         <p className="text-sm text-muted-foreground">Team Name</p>
-                        <p className="font-medium">{registration.team_name}</p>
+                        {isEditing ? (
+                          <Input
+                            id="team_name"
+                            name="team_name"
+                            value={formData.team_name}
+                            onChange={handleInputChange}
+                            className="mt-1"
+                          />
+                        ) : (
+                          <p className="font-medium">{registration.team_name}</p>
+                        )}
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Category</p>
-                        <p className="font-medium">{registration.category || 'N/A'}</p>
+                        {isEditing ? (
+                          <Select 
+                            value={formData.category} 
+                            onValueChange={(value) => handleSelectChange('category', value)}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="under_12">Under 12</SelectItem>
+                              <SelectItem value="open">Open</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="font-medium">{registration.category.replace('_', ' ')}</p>
+                        )}
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Team Size</p>
@@ -237,7 +354,17 @@ export default function RegistrationDetailPage() {
                     <div className="space-y-2">
                       <div>
                         <p className="text-sm text-muted-foreground">Name</p>
-                        <p className="font-medium">{registration.captain_name}</p>
+                        {isEditing ? (
+                          <Input
+                            id="captain_name"
+                            name="captain_name"
+                            value={formData.captain_name}
+                            onChange={handleInputChange}
+                            className="mt-1"
+                          />
+                        ) : (
+                          <p className="font-medium">{registration.captain_name}</p>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <Mail className="h-4 w-4 text-muted-foreground" />
@@ -269,7 +396,26 @@ export default function RegistrationDetailPage() {
                     <div className="space-y-2">
                       <div>
                         <p className="text-sm text-muted-foreground">Status</p>
-                        <div className="mt-1">{getStatusBadge(registration.status)}</div>
+                        {isEditing ? (
+                          <Select 
+                            value={formData.status} 
+                            onValueChange={(value) => handleSelectChange('status', value)}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="approved">Approved</SelectItem>
+                              <SelectItem value="rejected">Rejected</SelectItem>
+                              <SelectItem value="waitlist">Waitlist</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <div className="mt-1">
+                            {getStatusBadge(registration.status)}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Submitted</p>
@@ -296,16 +442,38 @@ export default function RegistrationDetailPage() {
                 <CardContent className="space-y-4">
                   <div>
                     <h3 className="text-sm font-medium mb-2">Team Description</h3>
-                    <div className="bg-gray-50 p-4 rounded-md border">
-                      {registration.team_description || 'No description provided.'}
-                    </div>
+                    {isEditing ? (
+                      <Textarea
+                        id="team_description"
+                        name="team_description"
+                        value={formData.team_description || ''}
+                        onChange={handleInputChange}
+                        className="mt-1 min-h-[100px]"
+                        placeholder="Enter team description"
+                      />
+                    ) : (
+                      <div className="bg-gray-50 p-4 rounded-md border">
+                        {registration.team_description || 'No description provided.'}
+                      </div>
+                    )}
                   </div>
                   
                   <div>
                     <h3 className="text-sm font-medium mb-2">Special Requests</h3>
-                    <div className="bg-gray-50 p-4 rounded-md border">
-                      {registration.special_requests || 'No special requests.'}
-                    </div>
+                    {isEditing ? (
+                      <Textarea
+                        id="special_requests"
+                        name="special_requests"
+                        value={formData.special_requests || ''}
+                        onChange={handleInputChange}
+                        className="mt-1 min-h-[100px]"
+                        placeholder="Enter special requests"
+                      />
+                    ) : (
+                      <div className="bg-gray-50 p-4 rounded-md border">
+                        {registration.special_requests || 'No special requests.'}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

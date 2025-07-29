@@ -7,14 +7,35 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Search, Plus, Download } from 'lucide-react';
+import { MoreHorizontal, Search, Plus, Download, Users, Edit } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
+
+interface Team {
+  id: string;
+  team_name: string;
+  captain_name: string;
+  email: string;
+  phone: string;
+  category: string;
+  status: string;  // Made more flexible to handle any status
+  created_at: string | null;
+  updated_at: string | null;
+  member_count: number;
+  soapbox_name: string;
+  soapbox_description: string | null;
+  file_url: string | null;
+  race_number: string | null;
+  heat_time: string | null;
+  team_members?: Array<{ count: number }>;
+}
 
 export default function TeamsPage() {
-  const [teams, setTeams] = useState([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchTeams();
@@ -23,14 +44,26 @@ export default function TeamsPage() {
   const fetchTeams = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('teams')
-        .select('*')
+      
+      // Fetch team registrations with member counts
+      const { data: registrations, error: regError } = await supabase
+        .from('team_registrations')
+        .select(`
+          *,
+          team_members(count)
+        `)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (regError) throw regError;
       
-      setTeams(data || []);
+      // Transform the data to include member counts
+      const teamsWithCounts = (registrations || []).map(registration => ({
+        ...registration,
+        member_count: registration.team_members?.[0]?.count || 0,
+        status: registration.status || 'pending', // Ensure status has a default value
+      } as Team));
+      
+      setTeams(teamsWithCounts);
     } catch (error) {
       console.error('Error fetching teams:', error);
     } finally {
@@ -46,37 +79,60 @@ export default function TeamsPage() {
     navigate(`/admin/teams/${teamId}`);
   };
 
-  const handleStatusChange = async (teamId, newStatus) => {
+  const handleStatusChange = async (teamId: string, newStatus: string) => {
     try {
       const { error } = await supabase
-        .from('teams')
-        .update({ status: newStatus })
+        .from('team_registrations')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', teamId);
       
       if (error) throw error;
       
-      // Refresh the teams list
-      fetchTeams();
+      // Update local state
+      setTeams(teams.map(team => 
+        team.id === teamId ? { ...team, status: newStatus as any } : team
+      ));
+      
+      toast({
+        title: 'Success',
+        description: `Team status updated to ${newStatus}`,
+      });
     } catch (error) {
       console.error('Error updating team status:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update team status',
+        variant: 'destructive',
+      });
     }
   };
 
-  const filteredTeams = teams.filter(team => 
-    team.team_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    team.captain_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    team.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredTeams = teams.filter(team => {
+    if (!team) return false;
+    const query = searchQuery.toLowerCase();
+    return (
+      (team.team_name || '').toLowerCase().includes(query) ||
+      (team.captain_name || '').toLowerCase().includes(query) ||
+      (team.email || '').toLowerCase().includes(query) ||
+      (team.category || '').toLowerCase().includes(query) ||
+      (team.status || '').toLowerCase().includes(query) ||
+      (team.soapbox_name || '').toLowerCase().includes(query)
+    );
+  });
 
-  const getStatusBadge = (status) => {
-    const statusMap = {
-      active: 'bg-green-100 text-green-800',
-      inactive: 'bg-gray-100 text-gray-800',
-      suspended: 'bg-red-100 text-red-800',
+  const getStatusBadge = (status: string) => {
+    const statusMap: Record<string, { className: string; label: string }> = {
+      approved: { className: 'bg-green-100 text-green-800', label: 'Approved' },
+      pending: { className: 'bg-yellow-100 text-yellow-800', label: 'Pending' },
+      rejected: { className: 'bg-red-100 text-red-800', label: 'Rejected' },
+      waitlist: { className: 'bg-blue-100 text-blue-800', label: 'Waitlist' },
     };
     
-    const className = statusMap[status] || 'bg-gray-100 text-gray-800';
-    return <Badge className={className}>{status}</Badge>;
+    const statusInfo = statusMap[status] || { className: 'bg-gray-100 text-gray-800', label: status };
+    return <Badge className={statusInfo.className}>{statusInfo.label}</Badge>;
   };
 
   return (
@@ -139,42 +195,36 @@ export default function TeamsPage() {
                       <TableCell className="font-medium">{team.team_name}</TableCell>
                       <TableCell>{team.captain_name}</TableCell>
                       <TableCell>{team.category}</TableCell>
-                      <TableCell>{team.member_count || 0} / {team.max_members || '∞'}</TableCell>
+                      <TableCell>{team.member_count} members</TableCell>
                       <TableCell>{getStatusBadge(team.status)}</TableCell>
                       <TableCell>{new Date(team.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => navigate(`/admin/registrations/${team.id}`)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          View Details
+                        </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Open menu</span>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleView(team.id)}>
+                            <DropdownMenuItem onClick={() => navigate(`/admin/registrations/${team.id}`)}>
                               View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEdit(team.id)}>
-                              Edit Team
+                            <DropdownMenuItem onClick={() => handleStatusChange(team.id, 'approved')}>
+                              Approve
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleStatusChange(team.id, 'active')}
-                              disabled={team.status === 'active'}
-                            >
-                              Mark as Active
+                            <DropdownMenuItem onClick={() => handleStatusChange(team.id, 'rejected')}>
+                              Reject
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleStatusChange(team.id, 'inactive')}
-                              disabled={team.status === 'inactive'}
-                            >
-                              Mark as Inactive
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="text-red-600"
-                              onClick={() => handleStatusChange(team.id, 'suspended')}
-                              disabled={team.status === 'suspended'}
-                            >
-                              Suspend Team
+                            <DropdownMenuItem onClick={() => handleStatusChange(team.id, 'waitlist')}>
+                              Move to Waitlist
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -189,6 +239,15 @@ export default function TeamsPage() {
               <div className="text-sm text-muted-foreground">
                 Showing <strong>{filteredTeams.length}</strong> of <strong>{teams.length}</strong> teams
               </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="ml-2"
+                onClick={() => navigate(`/admin/registrations/${teams[0].id}`)}
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </Button>
               <Button variant="outline" size="sm" className="ml-auto">
                 <Download className="mr-2 h-4 w-4" />
                 Export
