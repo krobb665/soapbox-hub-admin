@@ -14,7 +14,146 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      announcements: {
+        Row: {
+          category: string
+          created_at: string | null
+          id: string
+          message: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          id?: string
+          message: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          id?: string
+          message?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          is_admin: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          is_admin?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          is_admin?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          member_age: number
+          member_name: string
+          registration_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          member_age: number
+          member_name: string
+          registration_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          member_age?: number
+          member_name?: string
+          registration_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "team_registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_registrations: {
+        Row: {
+          captain_name: string
+          category: string
+          created_at: string | null
+          email: string
+          file_url: string | null
+          heat_time: string | null
+          id: string
+          phone: string
+          race_number: string | null
+          soapbox_description: string | null
+          soapbox_name: string
+          status: string | null
+          team_name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          captain_name: string
+          category: string
+          created_at?: string | null
+          email: string
+          file_url?: string | null
+          heat_time?: string | null
+          id?: string
+          phone: string
+          race_number?: string | null
+          soapbox_description?: string | null
+          soapbox_name: string
+          status?: string | null
+          team_name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          captain_name?: string
+          category?: string
+          created_at?: string | null
+          email?: string
+          file_url?: string | null
+          heat_time?: string | null
+          id?: string
+          phone?: string
+          race_number?: string | null
+          soapbox_description?: string | null
+          soapbox_name?: string
+          status?: string | null
+          team_name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

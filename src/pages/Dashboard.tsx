@@ -26,8 +26,10 @@ export default function Dashboard() {
           if (error) {
             console.error('Error fetching profile:', error);
             setIsAdmin(false);
+          } else if (profile) {
+            setIsAdmin(profile.is_admin || false);
           } else {
-            setIsAdmin(profile?.is_admin ?? false);
+            setIsAdmin(false);
           }
         }
       } catch (error) {
